@@ -4,17 +4,19 @@ const jwt = require('jsonwebtoken');
 const { verifyToken } = require('../firebase/auth');
 const authService = require('../services/auth');
 const authConstant = require('../constants/authConstant');
+const dayjs = require('dayjs');
 
 
 
 const register = async(req,res)=>{
     try {
         let {phone,email,username} = req.body;
-        if(!email && !phone && !username){
-            return res.badRequest({message : "Insufficient request parameters! email or phone is required"})
+        if((!email && !phone) || !username){
+            return res.badRequest({message : "Insufficient request parameters! email (or phone) and username are required"})
         }
         const data = new User({
-            ...req.body
+            ...req.body,
+            userType: authConstant.USER_TYPES.User
         })
 
         if(req.body.email){
@@ -50,6 +52,7 @@ const register = async(req,res)=>{
 const login = async(req,res)=>{
     try {
         let {username,password} = req.body;
+
         if(!username){
             return res.badRequest({message : "Insufficient request parameters! email or phone is required"})
         }
@@ -87,11 +90,22 @@ const login = async(req,res)=>{
         // let token =  jwt.sign({id:userData.id,email:userData.email},process.env.JWT_SCERET,{expiresIn:10000*60})
 
         // let result = {...userData,token}
+
+        let expireTime = dayjs(result.data.token.expireTime);
+
+// Get the current time
+let now = dayjs();
+
+// Calculate the difference in milliseconds
+let differenceInMilliseconds = expireTime.diff(now);
+
+        res.cookie('token',result.data.token.value, { httpOnly: false, secure: process.env.NODE_ENV === 'production', maxAge:  differenceInMilliseconds})
+        res.json({ redirectUrl: process.env.FRONTEND_URL });
         
-        return res.success({
-            data: result.data,
-            message: 'Login Successful'
-          });
+        // return res.success({
+        //     data: result.data,
+        //     message: 'Login Successful'
+        //   });
     } catch (error) {
         return res.internalServerError({data:error.message})
     }

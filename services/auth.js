@@ -66,7 +66,7 @@ const loginUser = async (username, password, platform) => {
                     await User.findOneAndUpdate(
                         { _id: user.id, isActive: true, isDeleted: false },
                         { loginRetryLimit: user.loginRetryLimit + 1 });
-                    return { flag: true, data: 'Incorrect Password' }
+                    return { flag: true, data: 'Invalid credential' }
                 }
             }
             const userData = user.toJSON()

@@ -5,18 +5,16 @@ const User = require("../model/user");
    
   const create = async (req,res) => {
       try {
-        let {userId, friendId} = req.body;
+        let {friendId} = req.body;
 
-        if(!userId || !friendId){
-            return res.badRequest({message : "Insufficient request parameters! userId and friendId is required"}) 
+        if(!friendId){
+            return res.badRequest({message : "Insufficient request parameters! friendId is required"}) 
         }
 
-        const user1 = await User.findOne({_id:userId,isDeleted: false});
-
-        if(!user1){
+        if(!req.user){
             return res.recordNotFound();
         }
-        if(user1.following.includes(friendId)){
+        if(req.user.following.includes(friendId)){
             return res.badRequest({message : "You already follow"})
         }
 
@@ -28,20 +26,20 @@ const User = require("../model/user");
 
         let data = {
             follow_by_user: false,
-            follower_of_user: user1.followers.includes(friendId),
+            follower_of_user: req.user.followers.includes(friendId),
             request_by_user: false,
             blocked_user: false
         }
 
-        if(user2?.requestes?.includes(userId)){
+        if(user2?.requestes?.includes(req.user.id)){
             return res.badRequest({message : "You have already send follow request"})
         }
 
-        if(user2.isPrivate && !(user2?.requestes?.includes(userId))){
+        if(user2.isPrivate && !(user2?.requestes?.includes(req.user.id))){
             let requestes = [];
             if(user2.requestes)
                 requestes = [...user2.requestes];
-            requestes.push(userId);
+            requestes.push(req.user.id);
             const updatedUser2 = await User.findOneAndUpdate({_id:friendId},{requestes:requestes});
             data.request_by_user = true;
             return res.success({ data : data });
@@ -50,14 +48,14 @@ const User = require("../model/user");
         let followers = [];
         if(user2.followers)
             followers = [...user2.followers];
-        followers.push(userId);
+        followers.push(req.user.id);
         await User.findOneAndUpdate({_id:friendId},{followers:followers});
 
         let following = [];
-        if(user1.following)
-        following = [...user1.following];
+        if(req.user.following)
+        following = [...req.user.following];
         following.push(friendId);
-        await User.findOneAndUpdate({_id:userId},{following:following});
+        await User.findOneAndUpdate({_id:req.user.id},{following:following});
 
         data.follow_by_user = true;
 
@@ -71,18 +69,16 @@ const User = require("../model/user");
 
   const reqAccept = async (req,res) => {
       try {
-        let {userId, friendId} = req.body;
+        let {friendId} = req.body;
 
-        if(!userId || !friendId){
-            return res.badRequest({message : "Insufficient request parameters! userId and friendId is required"}) 
+        if(!friendId){
+            return res.badRequest({message : "Insufficient request parameters! req.user.id and friendId is required"}) 
         }
 
-        const user1 = await User.findOne({_id:userId,isDeleted: false});
-
-        if(!user1){
+        if(!req.user){
             return res.recordNotFound();
         }
-        if(user1.followers.includes(friendId)){
+        if(req.user.followers.includes(friendId)){
             return res.badRequest({message : "This user already your follower"})
         }
 
@@ -93,35 +89,35 @@ const User = require("../model/user");
         }
 
         let data = {
-            follow_by_user: user1?.following?.includes(friendId),
+            follow_by_user: req.user?.following?.includes(friendId),
             follower_of_user: false,
-            request_by_user: user2?.requestes?.includes(userId),
+            request_by_user: user2?.requestes?.includes(req.user.id),
             request_accept_user: false,
             blocked_user: false
         }
 
 
-        if(!(user1?.requestes?.includes(friendId))){
+        if(!(req.user?.requestes?.includes(friendId))){
             return res.badRequest({message : "user request for follow you was removed"})
         }
 
         let requestes = [];
-            if(user1.requestes)
-                requestes = [...user1.requestes];
-        let index = user1.requestes.indexOf(friendId);
+            if(req.user.requestes)
+                requestes = [...req.user.requestes];
+        let index = req.user.requestes.indexOf(friendId);
         requestes.splice(index,1);
           
         let followers = [];
-        if(user1.followers)
-            followers = [...user1.followers];
+        if(req.user.followers)
+            followers = [...req.user.followers];
         followers.push(friendId);
-        await User.findOneAndUpdate({_id:userId},{requestes:requestes,followers:followers});
+        await User.findOneAndUpdate({_id:req.user.id},{requestes:requestes,followers:followers});
         data.request_accept_user = true;
 
         let following = [];
         if(user2.following)
         following = [...user2.following];
-        following.push(userId);
+        following.push(req.user.id);
         await User.findOneAndUpdate({_id:friendId},{following:following});
 
         data.follower_of_user = true;
@@ -138,11 +134,6 @@ const User = require("../model/user");
     // error here please solve this -------------------------------------------------------------------------------->
   const findAllRequest = async (req,res) => {
       try {
-        let {userId} = req.body;
-
-        if(!userId){
-            return res.badRequest({message : "Insufficient request parameters! userId is required"}) 
-        }
 
         let page = 1;
         let limit = 10;
@@ -150,11 +141,11 @@ const User = require("../model/user");
           page = Number(req.query.page)
         if(req.query.limit && Number(req.query.limit)>0)
           limit = Number(req.query.limit)
-
-        let user = await User.findById(userId);
         
-        const requestedIds = user?.requestes?.slice((page - 1)*limit, (page - 1)*limit + limit);
-
+        const requestedIds = req.user?.requestes?.slice((page - 1)*limit, (page - 1)*limit + limit);
+        if(!requestedIds || !requestedIds.length > 0){
+            return res.success({data: [], totalData: 0});
+        }
         let ids = [];
 
         for(const id of requestedIds){
@@ -196,7 +187,7 @@ const User = require("../model/user");
         //     [
         //         {
         //           $match: {
-        //             _id: userId
+        //             _id: req.user.id
         //           }
         //         },
         //         {
@@ -245,7 +236,7 @@ const User = require("../model/user");
 
         let data = {
             results: results,
-            totalDocs: user?.requestes?.length
+            totalDocs: req.user?.requestes?.length
         }
 
         return res.success({ data : data });
@@ -260,15 +251,13 @@ const User = require("../model/user");
 
   const destroy = async (req,res) => {
       try {
-        let {userId, friendId} = req.body;
+        let {friendId} = req.body;
 
-        if(!userId || !friendId){
-            return res.badRequest({message : "Insufficient request parameters! userId and friendId is required"}) 
+        if(!friendId){
+            return res.badRequest({message : "Insufficient request parameters! req.user.id and friendId is required"}) 
         }
 
-        const user1 = await User.findOne({_id:userId,isDeleted: false});
-
-        if(!user1){
+        if(!req.user){
             return res.recordNotFound();
         }
 
@@ -280,32 +269,32 @@ const User = require("../model/user");
 
         let data = {
             follow_by_user: false,
-            follower_of_user: user1.followers.includes(friendId),
+            follower_of_user: req.user.followers.includes(friendId),
             request_by_user: false,
             blocked_user: false
         }
 
-        if(user2.requestes.includes(userId)){
+        if(user2.requestes.includes(req.user.id)){
             let requestes = [];
             if(user2.requestes)
                 requestes = [...user2.requestes];
-            let index = user2.requestes.indexOf(userId);
+            let index = user2.requestes.indexOf(req.user.id);
             requestes.splice(index,1);
             const updatedUser2 = await User.findOneAndUpdate({_id:friendId},{requestes:requestes});
             return res.success({ data : data });
         }
         
         let following = [];
-        if(user1.following)
-        following = [...user1.following];
-        let index = user1.following.indexOf(friendId);
+        if(req.user.following)
+        following = [...req.user.following];
+        let index = req.user.following.indexOf(friendId);
         following.splice(index,1);
-        await User.findOneAndUpdate({_id:userId},{following:following});
+        await User.findOneAndUpdate({_id:req.user.id},{following:following});
 
         let followers = [];
         if(user2.followers)
             followers = [...user2.followers];
-        let index2 = user2.followers.indexOf(userId);
+        let index2 = user2.followers.indexOf(req.user.id);
         followers.splice(index2,1);
         await User.findOneAndUpdate({_id:friendId},{followers:followers});
 
@@ -321,15 +310,13 @@ const User = require("../model/user");
 
   const reqRemoveFollower = async (req,res) => {
       try {
-        let {userId, friendId} = req.body;
+        let {friendId} = req.body;
 
-        if(!userId || !friendId){
-            return res.badRequest({message : "Insufficient request parameters! userId and friendId is required"}) 
+        if(!friendId){
+            return res.badRequest({message : "Insufficient request parameters! req.user.id and friendId is required"}) 
         }
 
-        const user1 = await User.findOne({_id:userId,isDeleted: false});
-
-        if(!user1){
+        if(!req.user){
             return res.recordNotFound();
         }
 
@@ -340,20 +327,20 @@ const User = require("../model/user");
         }
 
         let data = {
-            follow_by_user: user1.following.includes(friendId),
-            follower_of_user: user1.followers.includes(friendId),
+            follow_by_user: req.user.following.includes(friendId),
+            follower_of_user: req.user.followers.includes(friendId),
             request_by_user: false,
             request_accept_user: false,
             blocked_user: false
         }
 
-        if(user1.requestes.includes(friendId)){
+        if(req.user.requestes.includes(friendId)){
             let requestes = [];
-            if(user1.requestes)
-                requestes = [...user1.requestes];
-            let index = user1.requestes.indexOf(friendId);
+            if(req.user.requestes)
+                requestes = [...req.user.requestes];
+            let index = req.user.requestes.indexOf(friendId);
             requestes.splice(index,1);
-            await User.findOneAndUpdate({_id:userId},{requestes:requestes});
+            await User.findOneAndUpdate({_id:req.user.id},{requestes:requestes});
             return res.success({ data : data });
         }
         
@@ -365,11 +352,11 @@ const User = require("../model/user");
         await User.findOneAndUpdate({_id:friendId},{following:following});
 
         let followers = [];
-        if(user1.followers)
-            followers = [...user1.followers];
-        let index2 = user1.followers.indexOf(userId);
+        if(req.user.followers)
+            followers = [...req.user.followers];
+        let index2 = req.user.followers.indexOf(req.user.id);
         followers.splice(index2,1);
-        await User.findOneAndUpdate({_id:userId},{followers:followers});
+        await User.findOneAndUpdate({_id:req.user.id},{followers:followers});
         data.follower_of_user = false;
 
         return res.success({ data :data });
@@ -381,10 +368,10 @@ const User = require("../model/user");
   
 //   const removeRequest = async (req,res) => {
 //       try {
-//         let {userId, friendId} = req.body;
+//         let {friendId} = req.body;
 
-//         if(!userId || !friendId){
-//             return res.badRequest({message : "Insufficient request parameters! userId and friendId is required"}) 
+//         if(!req.user.id || !friendId){
+//             return res.badRequest({message : "Insufficient request parameters! req.user.id and friendId is required"}) 
 //         }
 
 //         const user2 = await User.findOne({_id:friendId,isDeleted: false});

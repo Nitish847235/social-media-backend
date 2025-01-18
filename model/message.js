@@ -30,7 +30,21 @@ const myCustomLabels = {
       ref: 'chat',
       type: Schema.Types.ObjectId
     } ,
+    seenBy:[{
+      ref: 'user',
+      type: Schema.Types.ObjectId
+    }],
     message: String,
+    attachments: [{
+      fieldname: String,
+      originalname: String,
+      encoding: String,
+      mimetype: String,
+      destination: String,
+      filename: String,
+      path: String,
+      size: Number
+    }],
     createdAt: { type: Date },
     updatedAt: { type: Date },
     isDeleted: { type: Boolean},

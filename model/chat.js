@@ -40,6 +40,12 @@ const myCustomLabels = {
   description:{
     type: String,
   },
+  groupName: {
+    type: String,
+    required: function() {
+      return this.isGroup; // groupName is required if isGroup is true
+    }
+  },
   createBy:{
     ref: 'user',
     type: Schema.Types.ObjectId
@@ -64,6 +70,12 @@ const myCustomLabels = {
     this.isDeleted = false;
     next();
   });
+
+  schema.pre('remove', async function(next) {
+    await this.model('message').deleteMany({ chat: this._id });
+    next();
+  });
+  
 
   schema.pre('insertMany', async function (next, docs) {
     if (docs && docs.length) {

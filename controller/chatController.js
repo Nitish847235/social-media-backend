@@ -1,3 +1,4 @@
+const chat = require("../model/chat");
 const Chat = require("../model/chat");
 // const ChatSchemaKey = require('../utils/validation/ChatValidation');
 // const validation = require('../utils/validateRequest');
@@ -7,12 +8,18 @@ const create = async(req,res) => {
 
     try {
         let reqData = req.body || {};
-        if(!reqData.users && !(reqData.users.length>=2) && !reqData.createBy){
+        if(!reqData.users || !(reqData.users.length>=2) || !reqData.message){
             return res.badRequest({message : "Insufficient request parameters! users is required"}) 
         }
 
+        let checkChat = await chat.findOne({})
+
         if(reqData.users.length>2)
           reqData.isGroup = true;
+
+        reqData.createBy = req.user._id;
+
+
         
         // let validateRequest = validation.validateParamsWithJoi(
         //     reqData,
@@ -160,7 +167,7 @@ const findAllChat = async (req,res) => {
       //   // }
       // ]);
 
-      const foundChats = await Chat.find({users: {$in: [req.body.userId]}},{"messages": {$slice: -1}}).populate("users",{"name": 1, "username": 1, "Bio": 1, "picture": 1}).populate("messages").skip((page - 1)*limit).limit(limit);
+      const foundChats = await Chat.find({users: {$in: [req.user.id]}},{"messages": {$slice: -1}}).populate("users",{"name": 1, "username": 1, "Bio": 1, "picture": 1}).populate("messages").skip((page - 1)*limit).limit(limit);
       // if (typeof req.body.query === 'object' && req.body.query !== null) {
       //   query = { ...req.body.query };
       // }
@@ -172,9 +179,9 @@ const findAllChat = async (req,res) => {
       //   options = { ...req.body.options };
       // }
       // let foundChats = await Chat.paginate(query,options);
-      // if (!foundChats || !foundChats.data || !foundChats.data.length){
-      //   return res.recordNotFound(); 
-      // }
+      if (!foundChats || !foundChats.length){
+        return res.recordNotFound(); 
+      }
       return res.success({ data :foundChats });
     } catch (error){
       return res.internalServerError({ message:error.message });

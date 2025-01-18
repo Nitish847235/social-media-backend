@@ -2,6 +2,7 @@ const express = require('express')
 const path = require('path')
 const routes = require('./routes')
 const cors = require('cors')
+const cookieParser = require("cookie-parser")
 const passport = require('passport');
 const { userappPassportStrategy } = require('./config/userappPassportStrategy');
 const {Server} = require("socket.io")
@@ -30,9 +31,15 @@ const io = new Server(server, {
 const port = process.env.PORT || 9000;
 
 app.use(require('./utils/response/responseHandler'));
-app.use(cors())
+app.use(cors({
+  origin: "http://localhost:3000",
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE"]
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+app.use(cookieParser())
 app.use(passport.initialize());
 app.use("/uploads",express.static(path.join(__dirname, "uploads")));
 
@@ -109,6 +116,15 @@ io.on('connection', (socket) => {
           const updatedChat = await Chat.findByIdAndUpdate({_id: chatId}, {messages: messages});
         }
       });
+
+      // Typing event
+    socket.on('typing', ({ chatId, username }) => {
+      if (chatId) {
+        io.to("room-" + JSON.stringify(chatId)).emit('typing', { username });
+      } else {
+        socket.broadcast.emit('typing', { username });
+      }
+    });
   
       socket.on('online users', async () => {
         io.emit('online users', onlineUsers);

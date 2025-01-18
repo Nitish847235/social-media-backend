@@ -8,7 +8,7 @@ const create = async(req,res) => {
     try {
         let reqData = req.body || {};
         if(!reqData.userId){
-            return res.badRequest({message : "Insufficient request parameters! userId is required"}) 
+          reqData.userId = req.user.id;
         }
         // let validateRequest = validation.validateParamsWithJoi(
         //     reqData,
@@ -156,15 +156,15 @@ const findAllPost = async (req,res) => {
         if(!findPost){
           return res.recordNotFound();
         }
-        if(findPost.like.includes(req.body.userId)){
-          let index = findPost.like.indexOf(req.body.userId);
+        if(findPost.like.includes(req.user.id)){
+          let index = findPost.like.indexOf(req.user.id);
           let like = [...findPost.like];
           like.splice(index,1)
           dataToUpdate = {like:like}
         }
         else{
           let like = [...findPost.like];
-          like.push(req.body.userId)
+          like.push(req.user.id)
           dataToUpdate = {like:like}
         }
         let updatedPost = await Post.findOneAndUpdate(query,dataToUpdate);

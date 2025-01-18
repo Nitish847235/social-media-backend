@@ -11,14 +11,18 @@ const {
   
   const userappPassportStrategy = (passport) => {
     const options = {};
-    options.jwtFromRequest = ExtractJwt.fromAuthHeaderAsBearerToken();
+    options.jwtFromRequest = (req) => {
+      let token = null;
+      if (req && req.cookies) {
+        token = req.cookies.token;  // Assumes the JWT is stored under 'token' in the cookies
+      }
+      return token;
+    };
     options.secretOrKey = process.env.JWT_SCERET;
     passport.use('userapp-rule',
       new Strategy(options, async (payload, done) => {
         try {
-            console.log("userappPasswordStratagey Payload",payload);
           const result = await User.findOne({ _id: payload.id || payload.userId });
-          console.log("userappPasswordStratagey result",result);
           if (result) {
             return done(null, result.toJSON());
           }

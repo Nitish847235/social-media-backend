@@ -38,6 +38,20 @@ const ObjectId = require('mongodb').ObjectId;
 //     }
 //   };
    
+  const me = async (req,res) => {
+      try {
+        let data = req.user;
+
+        if(!data){
+          return res.unauthorized();
+        }
+
+        return res.success({ data :data });
+      }
+      catch (error){
+        return res.internalServerError({ message:error.message });
+      }
+    };
   const getProfileInfo = async (req,res) => {
       try {
         let query = {};
@@ -119,6 +133,9 @@ const ObjectId = require('mongodb').ObjectId;
         let dataToUpdate = {
           ...req.body
         };
+        if(req.user.id !== req.params.id){
+          res.unAuthorized();
+        }
         // let validateRequest = validation.validateParamsWithJoi(
         //     dataToUpdate,
         //     UserSchemaKey.updateSchemaKeys
@@ -143,6 +160,9 @@ const ObjectId = require('mongodb').ObjectId;
         if (!req.params.id){
           return res.badRequest({ message : 'Insufficient request parameters! id is required.' });
         }
+        if(req.user.id !== req.params.id){
+          res.unAuthorized();
+        }
         let query = { _id:req.params.id };
         const updateBody = {
           isDeleted: true,
@@ -162,6 +182,9 @@ const ObjectId = require('mongodb').ObjectId;
       if (!req.params.id){
         return res.badRequest({ message : 'Insufficient request parameters! id is required.' });
       }
+      if(req.user.id !== req.params.id){
+        res.unAuthorized();
+      }
       const query = { _id:req.params.id };
       const deletedUser = await User.findOneAndDelete( query);
       if (!deletedUser){
@@ -179,6 +202,7 @@ const ObjectId = require('mongodb').ObjectId;
   
 
 module.exports = {
+  me,
 getProfileInfo,
   getUserCount,
   updateUser,
